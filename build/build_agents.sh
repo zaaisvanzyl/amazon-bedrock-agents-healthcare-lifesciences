@@ -81,15 +81,18 @@ popd
 
 # Process agent build template
 echo "Processing agent build template..."
-if [ -f "agent_build.yaml" ]; then
-  echo "Packaging agent build template"
+AGENT_BUILD_PATH="multi_agent_collaboration/cancer_biomarker_discovery/bedrock_agents/agent_build.yaml"
+if [ -f "$AGENT_BUILD_PATH" ]; then
+  echo "Packaging agent build template from $AGENT_BUILD_PATH"
   aws cloudformation package \
-    --template-file agent_build.yaml \
+    --template-file "$AGENT_BUILD_PATH" \
     --s3-bucket "${S3_BUCKET}" \
     --output-template-file "packaged_agent_build.yaml"
   
   # Copy to S3
   aws s3 cp "packaged_agent_build.yaml" "s3://${S3_BUCKET}/packaged_agent_build.yaml"
+else
+  echo "WARNING: agent_build.yaml not found at $AGENT_BUILD_PATH"
 fi
 
 # Process agent catalog templates. NOTE: Uses a different S3 destination path!
