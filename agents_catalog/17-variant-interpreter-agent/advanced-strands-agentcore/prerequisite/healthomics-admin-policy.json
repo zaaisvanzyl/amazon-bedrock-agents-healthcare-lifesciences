@@ -1,0 +1,163 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "HealthOmicsStoreManagement",
+            "Effect": "Allow",
+            "Action": [
+                "omics:CreateVariantStore",
+                "omics:DeleteVariantStore",
+                "omics:UpdateVariantStore",
+                "omics:GetVariantStore",
+                "omics:ListVariantStores",
+                "omics:CreateAnnotationStore",
+                "omics:DeleteAnnotationStore",
+                "omics:UpdateAnnotationStore",
+                "omics:GetAnnotationStore",
+                "omics:ListAnnotationStores",
+                "omics:CreateAnnotationStoreVersion",
+                "omics:DeleteAnnotationStoreVersions",
+                "omics:ListAnnotationStoreVersions",
+                "omics:GetAnnotationStoreVersion"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "HealthOmicsImportJobs",
+            "Effect": "Allow",
+            "Action": [
+                "omics:StartVariantImportJob",
+                "omics:GetVariantImportJob",
+                "omics:ListVariantImportJobs",
+                "omics:StartAnnotationImportJob",
+                "omics:GetAnnotationImportJob",
+                "omics:ListAnnotationImportJobs"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "HealthOmicsReferenceStore",
+            "Effect": "Allow",
+            "Action": [
+                "omics:CreateReferenceStore",
+                "omics:DeleteReferenceStore",
+                "omics:GetReferenceStore",
+                "omics:ListReferenceStores",
+                "omics:StartReferenceImportJob",
+                "omics:GetReferenceImportJob",
+                "omics:ListReferenceImportJobs",
+                "omics:GetReference",
+                "omics:ListReferences",
+                "omics:GetReferenceMetadata"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "HealthOmicsWorkflows",
+            "Effect": "Allow",
+            "Action": [
+                "omics:CreateWorkflow",
+                "omics:DeleteWorkflow",
+                "omics:GetWorkflow",
+                "omics:ListWorkflows",
+                "omics:UpdateWorkflow",
+                "omics:StartRun",
+                "omics:GetRun",
+                "omics:ListRuns",
+                "omics:CancelRun",
+                "omics:DeleteRun",
+                "omics:GetRunTask",
+                "omics:ListRunTasks"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "HealthOmicsShareManagement",
+            "Effect": "Allow",
+            "Action": [
+                "omics:CreateShare",
+                "omics:DeleteShare",
+                "omics:GetShare",
+                "omics:ListShares",
+                "omics:AcceptShare"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "IAMPassRole",
+            "Effect": "Allow",
+            "Action": [
+                "iam:PassRole"
+            ],
+            "Resource": "arn:aws:iam::*:role/*healthomics*",
+            "Condition": {
+                "StringEquals": {
+                    "iam:PassedToService": "omics.amazonaws.com"
+                }
+            }
+        },
+        {
+            "Sid": "S3Access",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:ListBucket",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": [
+                "arn:aws:s3:::*genomics*",
+                "arn:aws:s3:::*genomics*/*",
+                "arn:aws:s3:::*omics*",
+                "arn:aws:s3:::*omics*/*"
+            ]
+        },
+        {
+            "Sid": "CloudFormationAccess",
+            "Effect": "Allow",
+            "Action": [
+                "cloudformation:DescribeStacks",
+                "cloudformation:ListStackResources"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "LakeFormationAccess",
+            "Effect": "Allow",
+            "Action": [
+                "lakeformation:GetDataAccess",
+                "lakeformation:GrantPermissions",
+                "lakeformation:RevokePermissions",
+                "lakeformation:ListPermissions",
+                "lakeformation:RegisterResource"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "GlueAccess",
+            "Effect": "Allow",
+            "Action": [
+                "glue:GetDatabase",
+                "glue:GetTable",
+                "glue:GetPartitions",
+                "glue:CreateTable",
+                "glue:UpdateTable",
+                "glue:CreateDatabase",
+                "glue:UpdateDatabase"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "RAMAccess",
+            "Effect": "Allow",
+            "Action": [
+                "ram:AcceptResourceShareInvitation",
+                "ram:GetResourceShareInvitations",
+                "ram:ListResources",
+                "ram:GetResourceShares"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+

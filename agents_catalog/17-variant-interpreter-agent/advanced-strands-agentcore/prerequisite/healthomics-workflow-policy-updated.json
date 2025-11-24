@@ -1,0 +1,42 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:ListBucket",
+                "s3:DeleteObject",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": [
+                "arn:aws:s3:::genomics-vcf-input-bucket-149536495426-us-east-1",
+                "arn:aws:s3:::genomics-vcf-input-bucket-149536495426-us-east-1/*",
+                "arn:aws:s3:::genomics-vep-output-bucket-149536495426-us-east-1",
+                "arn:aws:s3:::genomics-vep-output-bucket-149536495426-us-east-1/*"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "kms:Decrypt",
+                "kms:DescribeKey",
+                "kms:GenerateDataKey"
+            ],
+            "Resource": "arn:aws:kms:us-east-1:149536495426:key/8c4d0457-cd19-45dd-a655-18327df25234"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "logs:DescribeLogGroups",
+                "logs:DescribeLogStreams"
+            ],
+            "Resource": "arn:aws:logs:us-east-1:149536495426:log-group:/aws/omics/*"
+        }
+    ]
+}
+

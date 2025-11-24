@@ -42,8 +42,8 @@ def get_aws_config():
     
     # Method 3: Default region
     if not region:
-        region = '<YOUR_REGION>'
-        print(f"No region configured, using default: {region}")
+        region = 'us-east-1'
+        print(f"⚠️ No region configured, using default: {region}")
     
     # Try to get account ID
     try:
@@ -52,8 +52,11 @@ def get_aws_config():
         print(f"✅ AWS configuration detected - Region: {region}, Account: {account_id}")
     except Exception as e:
         print(f"⚠️ Warning: Could not get AWS account info: {e}")
-        account_id = os.environ.get('ACCOUNT_ID', '<YOUR_ACCOUNT_ID>')
-        print(f"Using default account ID: {account_id}")
+        account_id = os.environ.get('ACCOUNT_ID', None)
+        if not account_id:
+            print(f"❌ ERROR: Could not determine AWS account ID. Please set ACCOUNT_ID environment variable.")
+        else:
+            print(f"Using account ID from environment: {account_id}")
     
     return region, account_id
 
@@ -61,10 +64,10 @@ def get_aws_config():
 REGION, ACCOUNT_ID = get_aws_config()
 
 # Environment variables for genomics stores
-MODEL_ID = os.environ.get('MODEL_ID', 'us.anthropic.claude-3-7-sonnet-20250219-v1:0')
-LAKE_FORMATION_DATABASE = os.environ.get('LAKE_FORMATION_DATABASE', '<YOUR_AWS_PROFILE>')
-VARIANT_STORE_NAME = os.environ.get('VARIANT_STORE_NAME', 'genomicsvariantstore')
-ANNOTATION_STORE_NAME = os.environ.get('ANNOTATION_STORE_NAME', 'genomicsannotationstore')
+MODEL_ID = os.environ.get('MODEL_ID', 'anthropic.claude-3-sonnet-20240229-v1:0')
+LAKE_FORMATION_DATABASE = os.environ.get('LAKE_FORMATION_DATABASE', 'genomics_agent_db2')
+VARIANT_STORE_NAME = os.environ.get('VARIANT_STORE_NAME', 'variants')  # Use the clean variants view
+ANNOTATION_STORE_NAME = os.environ.get('ANNOTATION_STORE_NAME', 'variants')
 
 # Genomic analysis constants
 PATHOGENIC_SIGNIFICANCE = ['Pathogenic', 'Likely_pathogenic', 'Pathogenic/Likely_pathogenic']
@@ -126,68 +129,91 @@ print(f"Database: {LAKE_FORMATION_DATABASE}")
 # === CORE GENOMIC ANALYSIS FUNCTIONS ===
 def get_variant_store_info():
     """
-    Get information about the genomicsvariantstore using HealthOmics API
+    Get information about the variant data Glue table (replaces HealthOmics variant store)
     """
-    if omics_client is None:
-        return {'error': 'HealthOmics client not available'}
+    if glue_client is None:
+        return {'error': 'Glue client not available'}
         
     try:
-        # Get variant store details
-        var_store = omics_client.get_variant_store(name=VARIANT_STORE_NAME)
+        # Get variant table details from Glue catalog
+        # Try common VEP output table names
+        possible_names = [VARIANT_STORE_NAME, 'vep_outputs', 'vep_annotated_vcf', 'genomics_variants']
         
-        store_info = {
-            'name': var_store['name'],
-            'id': var_store['id'],
-            'status': var_store['status'],
-            'creation_time': var_store.get('creationTime', ''),
-            'description': var_store.get('description', ''),
-            'reference': var_store.get('reference', {}),
-            'sse_config': var_store.get('sseConfig', {}),
-            'status_message': var_store.get('statusMessage', ''),
-            'store_size_bytes': var_store.get('storeSizeBytes', 0),
-            'tags': var_store.get('tags', {})
-        }
+        for table_name in possible_names:
+            try:
+                response = glue_client.get_table(
+                    DatabaseName=LAKE_FORMATION_DATABASE,
+                    Name=table_name
+                )
+                table = response['Table']
+                
+                store_info = {
+                    'name': table['Name'],
+                    'database': table['DatabaseName'],
+                    'status': 'ACTIVE',
+                    'creation_time': table.get('CreateTime', ''),
+                    'update_time': table.get('UpdateTime', ''),
+                    'description': table.get('Description', 'VEP annotated variant data'),
+                    'storage_location': table.get('StorageDescriptor', {}).get('Location', ''),
+                    'row_count': table.get('Parameters', {}).get('recordCount', 'Unknown'),
+                    'columns': len(table.get('StorageDescriptor', {}).get('Columns', []))
+                }
+                
+                return {
+                    'variant_store': store_info,
+                    'store_type': 'Glue Table (VEP Variant Data)'
+                }
+            except glue_client.exceptions.EntityNotFoundException:
+                continue
         
-        return {
-            'variant_store': store_info,
-            'store_type': 'HealthOmics Variant Store'
-        }
+        return {'error': f'No variant tables found. Tried: {", ".join(possible_names)}'}
         
     except Exception as e:
-        return {'error': f'Error getting variant store info: {str(e)}'}
+        return {'error': f'Error getting variant table info: {str(e)}'}
 
 def get_annotation_store_info():
     """
-    Get information about the genomicsannotationstore using HealthOmics API
+    Get information about the annotation data Glue table (replaces HealthOmics annotation store)
     """
-    if omics_client is None:
-        return {'error': 'HealthOmics client not available'}
+    if glue_client is None:
+        return {'error': 'Glue client not available'}
         
     try:
-        # Get annotation store details
-        ann_store = omics_client.get_annotation_store(name=ANNOTATION_STORE_NAME)
+        # Get annotation table details from Glue catalog
+        possible_names = [ANNOTATION_STORE_NAME, 'vep_annotations', 'genomics_annotations']
         
-        store_info = {
-            'name': ann_store['name'],
-            'id': ann_store['id'],
-            'status': ann_store['status'],
-            'creation_time': ann_store.get('creationTime', ''),
-            'description': ann_store.get('description', ''),
-            'store_format': ann_store.get('storeFormat', ''),
-            'store_options': ann_store.get('storeOptions', {}),
-            'sse_config': ann_store.get('sseConfig', {}),
-            'status_message': ann_store.get('statusMessage', ''),
-            'store_size_bytes': ann_store.get('storeSizeBytes', 0),
-            'tags': ann_store.get('tags', {})
-        }
-        
-        return {
-            'annotation_store': store_info,
-            'store_type': 'HealthOmics Annotation Store'
-        }
+        for table_name in possible_names:
+            try:
+                response = glue_client.get_table(
+                    DatabaseName=LAKE_FORMATION_DATABASE,
+                    Name=table_name
+                )
+                table = response['Table']
+                
+                store_info = {
+                    'name': table['Name'],
+                    'database': table['DatabaseName'],
+                    'status': 'ACTIVE',
+                    'creation_time': table.get('CreateTime', ''),
+                    'update_time': table.get('UpdateTime', ''),
+                    'description': table.get('Description', 'VEP annotation data'),
+                    'storage_location': table.get('StorageDescriptor', {}).get('Location', ''),
+                    'store_format': 'VCF',
+                    'row_count': table.get('Parameters', {}).get('recordCount', 'Unknown'),
+                    'columns': len(table.get('StorageDescriptor', {}).get('Columns', []))
+                }
+                
+                return {
+                    'annotation_store': store_info,
+                    'store_type': 'Glue Table (VEP Annotation Data)'
+                }
+            except glue_client.exceptions.EntityNotFoundException:
+                continue
+                
+        return {'error': f'No annotation tables found. Tried: {", ".join(possible_names)}'}
         
     except Exception as e:
-        return {'error': f'Error getting annotation store info: {str(e)}'}
+        return {'error': f'Error getting annotation table info: {str(e)}'}
 
 def execute_athena_query_on_stores(query, database=None):
     """
@@ -260,7 +286,23 @@ def execute_athena_query_on_stores(query, database=None):
             # Process rows (skip header only on first page)
             start_idx = 1 if next_token is None else 0
             for row in results['ResultSet']['Rows'][start_idx:]:
-                row_data = [col.get('VarCharValue', '') for col in row['Data']]
+                # Athena returns different value types - handle all of them
+                row_data = []
+                for col in row['Data']:
+                    # Check for different Athena data types
+                    if 'VarCharValue' in col:
+                        row_data.append(col['VarCharValue'])
+                    elif 'IntValue' in col:
+                        row_data.append(str(col['IntValue']))
+                    elif 'BigIntValue' in col:
+                        row_data.append(str(col['BigIntValue']))
+                    elif 'DoubleValue' in col:
+                        row_data.append(str(col['DoubleValue']))
+                    elif 'BooleanValue' in col:
+                        row_data.append(str(col['BooleanValue']))
+                    else:
+                        # Empty or NULL value
+                        row_data.append('')
                 row_dict = dict(zip(columns, row_data))
                 rows.append(row_dict)
             
@@ -582,40 +624,52 @@ def get_available_samples_from_variant_store():
 # === MAIN ANALYSIS FUNCTIONS FOR GENOMICS STORES ===
 def get_stores_information():
     """
-    Get comprehensive information about variant and annotation stores
+    Get comprehensive information about variant and annotation Glue tables
     """
     try:
         variant_info = get_variant_store_info()
         annotation_info = get_annotation_store_info()
         
-        response_text = f"Genomics Stores Information:\n\n"
+        response_text = f"Genomics Data Storage Information:\n\n"
+        response_text += f"📊 Database: {LAKE_FORMATION_DATABASE}\n\n"
         
-        # Variant Store Info
-        response_text += f"Variant Store ({VARIANT_STORE_NAME}):\n"
+        # Variant Table Info
+        response_text += f"Variant Data Table:\n"
         if 'error' in variant_info:
-            response_text += f"  Error: {variant_info['error']}\n"
+            response_text += f"  ⚠️  Error: {variant_info['error']}\n"
         else:
             store = variant_info.get('variant_store', {})
-            response_text += f"  - ID: {store.get('id', 'N/A')}\n"
+            response_text += f"  - Table Name: {store.get('name', 'N/A')}\n"
+            response_text += f"  - Database: {store.get('database', 'N/A')}\n"
             response_text += f"  - Status: {store.get('status', 'N/A')}\n"
+            response_text += f"  - Storage Type: {variant_info.get('store_type', 'N/A')}\n"
+            response_text += f"  - Location: {store.get('storage_location', 'N/A')}\n"
+            response_text += f"  - Columns: {store.get('columns', 'N/A')}\n"
+            response_text += f"  - Row Count: {store.get('row_count', 'Unknown')}\n"
             response_text += f"  - Created: {store.get('creation_time', 'N/A')}\n"
-            response_text += f"  - Description: {store.get('description', 'N/A')}\n"
-            response_text += f"  - Size: {store.get('store_size_bytes', 0):,} bytes\n"
+            response_text += f"  - Last Updated: {store.get('update_time', 'N/A')}\n"
         
-        # Annotation Store Info
-        response_text += f"\nAnnotation Store ({ANNOTATION_STORE_NAME}):\n"
+        # Annotation Table Info
+        response_text += f"\nAnnotation Data Table:\n"
         if 'error' in annotation_info:
-            response_text += f"  Error: {annotation_info['error']}\n"
+            response_text += f"  ⚠️  Error: {annotation_info['error']}\n"
         else:
             store = annotation_info.get('annotation_store', {})
-            response_text += f"  - ID: {store.get('id', 'N/A')}\n"
+            response_text += f"  - Table Name: {store.get('name', 'N/A')}\n"
+            response_text += f"  - Database: {store.get('database', 'N/A')}\n"
             response_text += f"  - Status: {store.get('status', 'N/A')}\n"
+            response_text += f"  - Storage Type: {annotation_info.get('store_type', 'N/A')}\n"
+            response_text += f"  - Location: {store.get('storage_location', 'N/A')}\n"
             response_text += f"  - Format: {store.get('store_format', 'N/A')}\n"
+            response_text += f"  - Columns: {store.get('columns', 'N/A')}\n"
+            response_text += f"  - Row Count: {store.get('row_count', 'Unknown')}\n"
             response_text += f"  - Created: {store.get('creation_time', 'N/A')}\n"
-            response_text += f"  - Size: {store.get('store_size_bytes', 0):,} bytes\n"
+            response_text += f"  - Last Updated: {store.get('update_time', 'N/A')}\n"
+        
+        response_text += f"\nℹ️  Data is queried via AWS Glue Data Catalog and Amazon Athena\n"
         
         return {
-            'analysis_type': 'Stores Information',
+            'analysis_type': 'Data Storage Information',
             'variant_store_info': variant_info,
             'annotation_store_info': annotation_info,
             'summary': response_text
@@ -623,9 +677,9 @@ def get_stores_information():
         
     except Exception as e:
         return {
-            'analysis_type': 'Stores Information',
-            'error': f"Error getting stores information: {str(e)}",
-            'summary': f"Failed to retrieve stores information: {str(e)}"
+            'analysis_type': 'Data Storage Information',
+            'error': f"Error getting storage information: {str(e)}",
+            'summary': f"Failed to retrieve storage information: {str(e)}"
         }
 
 def query_variants_by_gene_function(gene_symbols, sample_ids=None, include_frequency=True):

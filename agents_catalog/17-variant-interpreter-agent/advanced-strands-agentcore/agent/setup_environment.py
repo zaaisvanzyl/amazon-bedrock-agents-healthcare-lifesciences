@@ -28,10 +28,11 @@ def setup_environment():
         'AWS_DEFAULT_REGION': region,
         'REGION': region,
         'ACCOUNT_ID': account_id,
-        'VARIANT_STORE_NAME': 'genomicsvariantstore',
-        'ANNOTATION_STORE_NAME': 'genomicsannotationstore',
-        'LAKE_FORMATION_DATABASE': '<YOUR_AWS_PROFILE>',  # Update this
-        'MODEL_ID': 'us.anthropic.claude-3-7-sonnet-20250219-v1:0'
+        'VARIANT_STORE_NAME': 'vcf_data',  # Updated to use working VCF table
+        'ANNOTATION_STORE_NAME': 'vcf_data',  # Updated to use working VCF table
+        'VCF_TABLE_NAME': 'vcf_data',  # New: Working VCF table name
+        'LAKE_FORMATION_DATABASE': 'genomics_agent_db2',  # Updated with actual database
+        'MODEL_ID': 'anthropic.claude-3-sonnet-20240229-v1:0'
     }
     
     for key, value in env_vars.items():

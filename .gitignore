@@ -9,3 +9,4 @@ node_modules
 __pycache__
 *-packaged.yaml
 tasks.md
+homo_sapiens_vep_111_GRCh38/

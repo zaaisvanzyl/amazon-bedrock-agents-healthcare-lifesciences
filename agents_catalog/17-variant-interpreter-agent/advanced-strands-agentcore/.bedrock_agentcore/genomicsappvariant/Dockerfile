@@ -8,13 +8,15 @@ ENV UV_SYSTEM_PYTHON=1 \
     PYTHONUNBUFFERED=1 \
     DOCKER_CONTAINER=1 \
     AWS_REGION=us-east-1 \
-    AWS_DEFAULT_REGION=us-east-1
+    AWS_DEFAULT_REGION=us-east-1 \
+    VCF_TABLE_NAME=vcf_data_annotated \
+    LAKE_FORMATION_DATABASE=genomics_agent_db2
 
 
 
-COPY runtime_requirements.txt runtime_requirements.txt
+COPY agent/runtime_requirements.txt agent/runtime_requirements.txt
 # Install from requirements file
-RUN uv pip install -r runtime_requirements.txt
+RUN uv pip install -r agent/runtime_requirements.txt
 
 
 
@@ -38,4 +40,4 @@ COPY . .
 
 # Use the full module path
 
-CMD ["opentelemetry-instrument", "python", "-m", "main"]
+CMD ["opentelemetry-instrument", "python", "agent/main.py"]

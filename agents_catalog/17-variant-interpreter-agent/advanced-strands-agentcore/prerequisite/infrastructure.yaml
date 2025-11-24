@@ -268,6 +268,33 @@ Resources:
                   - omics:ListVariantStores
                   - omics:GetAnnotationStore
                   - omics:ListAnnotationStores
+                  - omics:CreateVariantStore
+                  - omics:DeleteVariantStore
+                  - omics:UpdateVariantStore
+                  - omics:CreateAnnotationStore
+                  - omics:DeleteAnnotationStore
+                  - omics:UpdateAnnotationStore
+                  - omics:StartVariantImportJob
+                  - omics:GetVariantImportJob
+                  - omics:ListVariantImportJobs
+                  - omics:StartAnnotationImportJob
+                  - omics:GetAnnotationImportJob
+                  - omics:ListAnnotationImportJobs
+                  - omics:CreateReferenceStore
+                  - omics:DeleteReferenceStore
+                  - omics:GetReferenceStore
+                  - omics:ListReferenceStores
+                  - omics:StartReferenceImportJob
+                  - omics:GetReferenceImportJob
+                  - omics:ListReferenceImportJobs
+                  - omics:GetReference
+                  - omics:ListReferences
+                  - omics:GetReferenceMetadata
+                  - omics:CreateShare
+                  - omics:DeleteShare
+                  - omics:GetShare
+                  - omics:ListShares
+                  - omics:AcceptShare
                 Resource: 
                   - !Sub 'arn:aws:omics:${AWS::Region}:${AWS::AccountId}:*'
               - Effect: Allow
@@ -312,10 +339,14 @@ Resources:
                   - glue:GetPartitions
                   - glue:CreateTable
                   - glue:UpdateTable
+                  - glue:StartCrawler
+                  - glue:GetCrawler
+                  - glue:GetCrawlerMetrics
                 Resource: 
                   - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog'
                   - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}'
                   - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/${DatabaseName}/*'
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:crawler/${ProjectName}-vep-crawler'
               - Effect: Allow
                 Action:
                   - iam:PassRole
@@ -329,6 +360,13 @@ Resources:
                   - CreateKMSKey
                   - !GetAtt GenomicsKMSKey.Arn
                   - !Ref ExistingKMSKeyArn
+              - Effect: Allow
+                Action:
+                  - ram:AcceptResourceShareInvitation
+                  - ram:GetResourceShareInvitations
+                  - ram:ListResources
+                  - ram:GetResourceShares
+                Resource: '*'
 
   # IAM Role for HealthOmics Workflows
   HealthOmicsWorkflowRole:
@@ -470,6 +508,71 @@ Resources:
         Name: !Ref DatabaseName
         Description: 'Database for genomics variant analysis'
 
+  # IAM Role for Glue Crawler
+  GlueCrawlerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-glue-crawler-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+      Policies:
+        - PolicyName: GlueCrawlerS3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub '${VepOutputBucket.Arn}'
+                  - !Sub '${VepOutputBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !If 
+                  - CreateKMSKey
+                  - !GetAtt GenomicsKMSKey.Arn
+                  - !Ref ExistingKMSKeyArn
+
+  # Glue Crawler for VEP Output
+  VepOutputCrawler:
+    Type: AWS::Glue::Crawler
+    DependsOn: GenomicsDatabase
+    Properties:
+      Name: !Sub '${ProjectName}-vep-crawler'
+      Role: !GetAtt GlueCrawlerRole.Arn
+      DatabaseName: !Ref DatabaseName
+      Description: 'Crawler for VEP annotated VCF files'
+      Targets:
+        S3Targets:
+          - Path: !Sub 's3://${VepOutputBucket}/vep-outputs/'
+            Exclusions:
+              - '**.log'
+              - '**.summary'
+              - '_SUCCESS'
+      SchemaChangePolicy:
+        UpdateBehavior: UPDATE_IN_DATABASE
+        DeleteBehavior: LOG
+      Configuration: |
+        {
+          "Version": 1.0,
+          "CrawlerOutput": {
+            "Partitions": { "AddOrUpdateBehavior": "InheritFromTable" }
+          },
+          "Grouping": {
+            "TableGroupingPolicy": "CombineCompatibleSchemas"
+          }
+        }
+
   # Lambda Function for VCF Processing
   VcfProcessorFunction:
     Type: AWS::Lambda::Function
@@ -505,9 +608,9 @@ Resources:
       Environment:
         Variables:
           DYNAMODB_TABLE: !Ref VcfTrackingTable
-          VARIANT_STORE_NAME: !Ref VariantStoreName
-          ANNOTATION_STORE_NAME: !Ref AnnotationStoreName
           DATABASE_NAME: !Ref DatabaseName
+          CRAWLER_NAME: !Sub '${ProjectName}-vep-crawler'
+          VEP_OUTPUT_BUCKET: !Ref VepOutputBucket
           ROLE_ARN: !GetAtt HealthOmicsWorkflowRole.Arn
       Code:
         ZipFile: |
@@ -536,27 +639,6 @@ Resources:
         - Arn: !GetAtt WorkflowMonitorFunction.Arn
           Id: 'WorkflowMonitorTarget'
 
-  # EventBridge Rule for Variant Import Status Changes
-  VariantImportStatusRule:
-    Type: AWS::Events::Rule
-    Properties:
-      Name: !Sub '${ProjectName}-variant-import-status-rule'
-      Description: 'Capture HealthOmics variant import status changes'
-      EventPattern:
-        source:
-          - 'aws.omics'
-        detail-type:
-          - 'HealthOmics Variant Import Job Status Change'
-        detail:
-          status:
-            - 'COMPLETED'
-            - 'FAILED'
-            - 'CANCELLED'
-      State: ENABLED
-      Targets:
-        - Arn: !GetAtt WorkflowMonitorFunction.Arn
-          Id: 'VariantImportMonitorTarget'
-
   # Lambda Permissions for EventBridge
   WorkflowMonitorEventBridgePermission:
     Type: AWS::Lambda::Permission
@@ -565,14 +647,6 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
       SourceArn: !GetAtt WorkflowStatusRule.Arn
-
-  VariantImportMonitorEventBridgePermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !Ref WorkflowMonitorFunction
-      Action: lambda:InvokeFunction
-      Principal: events.amazonaws.com
-      SourceArn: !GetAtt VariantImportStatusRule.Arn
 
   # Lambda Permission for S3 (VCF Input Bucket)
   VcfProcessorS3Permission:
@@ -683,6 +757,18 @@ Outputs:
     Value: !Ref GenomicsDatabase
     Export:
       Name: !Sub '${AWS::StackName}-Database'
+
+  GlueCrawlerName:
+    Description: 'Name of the Glue Crawler for VEP outputs'
+    Value: !Ref VepOutputCrawler
+    Export:
+      Name: !Sub '${AWS::StackName}-CrawlerName'
+
+  GlueCrawlerRoleArn:
+    Description: 'ARN of the Glue Crawler IAM role'
+    Value: !GetAtt GlueCrawlerRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-CrawlerRoleArn'
 
   VcfProcessorFunctionName:
     Description: 'Name of the VCF processor Lambda function'

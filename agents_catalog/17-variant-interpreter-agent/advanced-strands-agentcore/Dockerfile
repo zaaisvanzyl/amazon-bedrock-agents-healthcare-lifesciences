@@ -12,9 +12,9 @@ ENV UV_SYSTEM_PYTHON=1 \
 
 
 
-COPY runtime_requirements.txt runtime_requirements.txt
+COPY agent/runtime_requirements.txt agent/runtime_requirements.txt
 # Install from requirements file
-RUN uv pip install -r runtime_requirements.txt
+RUN uv pip install -r agent/runtime_requirements.txt
 
 
 
@@ -38,4 +38,4 @@ COPY . .
 
 # Use the full module path
 
-CMD ["opentelemetry-instrument", "python", "-m", "main"]
+CMD ["opentelemetry-instrument", "python", "-m", "agent.main"]
