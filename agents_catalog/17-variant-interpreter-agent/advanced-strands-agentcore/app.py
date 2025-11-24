@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import time
 import uuid
@@ -10,6 +11,27 @@ from streamlit.logger import get_logger
 
 logger = get_logger(__name__)
 logger.setLevel("INFO")
+
+# Configure AWS credentials from Streamlit secrets or environment
+def configure_aws_credentials():
+    """Configure AWS credentials from Streamlit secrets or environment variables"""
+    try:
+        # Try to use Streamlit secrets first (for Streamlit Cloud)
+        if hasattr(st, 'secrets') and 'aws' in st.secrets:
+            os.environ['AWS_ACCESS_KEY_ID'] = st.secrets['aws']['aws_access_key_id']
+            os.environ['AWS_SECRET_ACCESS_KEY'] = st.secrets['aws']['aws_secret_access_key']
+            if 'aws_region' in st.secrets['aws']:
+                os.environ['AWS_DEFAULT_REGION'] = st.secrets['aws']['aws_region']
+            logger.info("AWS credentials loaded from Streamlit secrets")
+        else:
+            # Fall back to environment variables or IAM role (for local/EC2)
+            logger.info("Using AWS credentials from environment or IAM role")
+    except Exception as e:
+        logger.warning(f"Error configuring AWS credentials: {e}")
+        # Continue anyway - boto3 will try to use default credential chain
+
+# Configure credentials at startup
+configure_aws_credentials()
 
 # Page config
 st.set_page_config(
@@ -427,6 +449,37 @@ def main():
     # Header
     st.title("VCF Analysis")
     st.caption("Instantly find clinical and scientific evidence for genes or variants with AI")
+    
+    # Check for AWS credentials
+    try:
+        # Try to create a simple boto3 client to verify credentials
+        boto3.client('sts').get_caller_identity()
+    except Exception as e:
+        st.error("""
+        ### ⚠️ AWS Credentials Not Configured
+        
+        This app requires AWS credentials to connect to Bedrock AgentCore.
+        
+        **For Streamlit Cloud:**
+        1. Go to your app settings
+        2. Navigate to "Secrets"
+        3. Add the following:
+        
+        ```toml
+        [aws]
+        aws_access_key_id = "YOUR_AWS_ACCESS_KEY_ID"
+        aws_secret_access_key = "YOUR_AWS_SECRET_ACCESS_KEY"
+        aws_region = "us-east-1"
+        ```
+        
+        **For Local Development:**
+        - Configure AWS CLI: `aws configure`
+        - Or set environment variables: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+        
+        **Error Details:** {error}
+        """.format(error=str(e)))
+        st.stop()
+        return
 
     # Sidebar for settings
     with st.sidebar:
