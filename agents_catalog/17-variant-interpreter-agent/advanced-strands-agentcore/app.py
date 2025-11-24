@@ -13,334 +13,10 @@ logger.setLevel("INFO")
 
 # Page config
 st.set_page_config(
-    page_title="Genomics Variant Analysis Agent",
+    page_title="VCF Analysis",
     page_icon="🧬",
     layout="wide",
     initial_sidebar_state="expanded",
-)
-
-# Minimal professional styling
-st.markdown(
-    """
-    <style>
-        /* Import clean modern font */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        
-        /* Global styles - minimal and clean */
-        * {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        }
-        
-        /* Hide Streamlit branding */
-        .stAppDeployButton {display:none;}
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
-        
-        /* Main app container - pure white */
-        .main {
-            background: #ffffff;
-            padding: 2rem 3rem;
-        }
-        
-        /* Sidebar - clean white with subtle border */
-        [data-testid="stSidebar"] {
-            background: #ffffff;
-            border-right: 1px solid #e5e7eb;
-            padding-top: 2rem;
-        }
-        
-        [data-testid="stSidebar"] * {
-            color: #1f2937 !important;
-        }
-        
-        /* Sidebar buttons - minimal style */
-        [data-testid="stSidebar"] .stButton button {
-            background-color: #ffffff;
-            border: 1px solid #d1d5db;
-            color: #374151;
-            border-radius: 6px;
-            padding: 0.5rem 1rem;
-            font-weight: 500;
-            font-size: 0.875rem;
-            transition: all 0.15s ease;
-        }
-        
-        [data-testid="stSidebar"] .stButton button:hover {
-            background-color: #f9fafb;
-            border-color: #9ca3af;
-        }
-        
-        [data-testid="stSidebar"] .stSelectbox select,
-        [data-testid="stSidebar"] .stTextInput input {
-            background-color: #ffffff;
-            border: 1px solid #d1d5db;
-            color: #1f2937;
-            border-radius: 6px;
-            font-size: 0.875rem;
-        }
-        
-        /* Main title - clean and minimal */
-        h1 {
-            color: #111827;
-            font-weight: 600;
-            font-size: 2rem !important;
-            margin-bottom: 0.5rem;
-            letter-spacing: -0.025em;
-        }
-        
-        /* Section headers */
-        h2, h3 {
-            color: #111827;
-            font-weight: 600;
-            margin-top: 1.5rem;
-            letter-spacing: -0.025em;
-        }
-        
-        h2 {
-            font-size: 1.5rem !important;
-        }
-        
-        h3 {
-            font-size: 1.125rem !important;
-        }
-        
-        h5 {
-            color: #374151;
-            font-size: 0.875rem !important;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 0.75rem;
-        }
-        
-        /* Chat messages - clean cards */
-        .stChatMessage {
-            background: #ffffff;
-            border-radius: 8px;
-            padding: 1.25rem;
-            margin: 0.75rem 0;
-            border: 1px solid #e5e7eb;
-            transition: border-color 0.15s ease;
-        }
-        
-        .stChatMessage:hover {
-            border-color: #d1d5db;
-        }
-        
-        /* User message */
-        [data-testid="stChatMessageContainer"] [data-testid="stChatMessage"]:has([aria-label="user"]) {
-            background: #f9fafb;
-            border-color: #e5e7eb;
-        }
-        
-        /* Assistant message */
-        [data-testid="stChatMessageContainer"] [data-testid="stChatMessage"]:has([aria-label="assistant"]) {
-            background: #ffffff;
-            border-color: #e5e7eb;
-        }
-        
-        /* Chat input */
-        .stChatInputContainer {
-            border-top: 1px solid #e5e7eb;
-            padding-top: 1rem;
-            margin-top: 2rem;
-        }
-        
-        .stChatInput textarea {
-            border: 1px solid #d1d5db !important;
-            border-radius: 8px !important;
-            font-size: 0.9375rem;
-        }
-        
-        .stChatInput textarea:focus {
-            border-color: #6b7280 !important;
-            box-shadow: none !important;
-        }
-        
-        /* Buttons - minimal and clean */
-        .stButton button {
-            background: #111827;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 0.5rem 1rem;
-            font-weight: 500;
-            font-size: 0.875rem;
-            transition: background 0.15s ease;
-        }
-        
-        .stButton button:hover {
-            background: #1f2937;
-        }
-        
-        /* Secondary buttons */
-        .stButton button[kind="secondary"] {
-            background: #ffffff;
-            color: #374151;
-            border: 1px solid #d1d5db;
-        }
-        
-        .stButton button[kind="secondary"]:hover {
-            background: #f9fafb;
-            border-color: #9ca3af;
-        }
-        
-        /* Info boxes - minimal */
-        .stAlert {
-            border-radius: 6px;
-            border: 1px solid #e5e7eb;
-            background: #f9fafb;
-            padding: 0.75rem 1rem;
-        }
-        
-        .stSuccess {
-            background: #f0fdf4;
-            border-color: #86efac;
-            color: #166534;
-        }
-        
-        .stWarning {
-            background: #fffbeb;
-            border-color: #fcd34d;
-            color: #92400e;
-        }
-        
-        .stError {
-            background: #fef2f2;
-            border-color: #fca5a5;
-            color: #991b1b;
-        }
-        
-        .stInfo {
-            background: #eff6ff;
-            border-color: #93c5fd;
-            color: #1e40af;
-        }
-        
-        /* Expanders - minimal */
-        .streamlit-expanderHeader {
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
-            border-radius: 6px;
-            font-weight: 500;
-            color: #374151;
-            font-size: 0.875rem;
-        }
-        
-        .streamlit-expanderHeader:hover {
-            background: #f9fafb;
-        }
-        
-        /* Code blocks */
-        .stCodeBlock {
-            border-radius: 6px;
-            border: 1px solid #e5e7eb;
-            background: #f9fafb;
-        }
-        
-        code {
-            background: #f3f4f6;
-            padding: 0.125rem 0.25rem;
-            border-radius: 3px;
-            font-size: 0.875rem;
-        }
-        
-        /* Containers with borders */
-        [data-testid="stVerticalBlock"] > div[style*="border"] {
-            border-radius: 8px !important;
-            border: 1px solid #e5e7eb !important;
-            padding: 1rem !important;
-            background: #ffffff;
-        }
-        
-        /* Checkbox styling */
-        .stCheckbox {
-            padding: 0.375rem 0;
-        }
-        
-        .stCheckbox label {
-            font-size: 0.875rem;
-            color: #374151;
-        }
-        
-        /* Caption text */
-        .stCaption {
-            color: #6b7280;
-            font-size: 0.8125rem;
-            font-weight: 400;
-        }
-        
-        /* Divider */
-        hr {
-            margin: 1.5rem 0;
-            border: none;
-            height: 1px;
-            background: #e5e7eb;
-        }
-        
-        /* Sample question buttons in sidebar */
-        [data-testid="stSidebar"] .stButton button[kind="secondary"] {
-            text-align: left;
-            justify-content: flex-start;
-            padding: 0.625rem 0.875rem;
-            font-size: 0.8125rem;
-            white-space: normal;
-            height: auto;
-            line-height: 1.4;
-            font-weight: 400;
-        }
-        
-        /* Input fields */
-        input, textarea, select {
-            font-size: 0.875rem !important;
-        }
-        
-        /* Layout and spacing */
-        .block-container {
-            padding-top: 2rem;
-            padding-bottom: 3rem;
-            max-width: 1200px;
-        }
-        
-        /* Clean scrollbars */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 4px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
-        
-        /* Markdown text */
-        .stMarkdown {
-            font-size: 0.9375rem;
-            line-height: 1.6;
-            color: #374151;
-        }
-        
-        /* Links */
-        a {
-            color: #2563eb;
-            text-decoration: none;
-        }
-        
-        a:hover {
-            text-decoration: underline;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True,
 )
 
 HUMAN_AVATAR = "👤"
@@ -748,23 +424,14 @@ def invoke_agent_streaming(
 
 
 def main():
-    # Clean minimal header
-    st.markdown(
-        """
-        <div style="margin-bottom: 3rem;">
-            <h1 style="margin-bottom: 0.5rem; font-weight: 600; color: #111827;">Genomics Variant Analysis</h1>
-            <p style="color: #6b7280; font-size: 0.9375rem; font-weight: 400; margin: 0;">
-                Instantly find clinical and scientific evidence for genes or variants with AI
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    # Header
+    st.title("VCF Analysis")
+    st.caption("Instantly find clinical and scientific evidence for genes or variants with AI")
 
     # Sidebar for settings
     with st.sidebar:
         # Region selection (moved up since it affects agent fetching)
-        st.markdown("##### AWS Region")
+        st.subheader("AWS Region")
         region = st.selectbox(
             "AWS Region",
             ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"],
@@ -773,22 +440,17 @@ def main():
         )
 
         # Agent selection - hardcoded for genomics agent
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("##### Agent Configuration")
+        st.divider()
+        st.subheader("Agent Configuration")
         
         # Use the specific genomics agent with VEP-annotated data
         agent_arn = "arn:aws:bedrock-agentcore:us-east-1:149536495426:runtime/main-U0xw41D5VF"
         
-        st.markdown(
-            f"""
-            <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.75rem; margin-bottom: 1rem;">
-                <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Active Agent</div>
-                <div style="font-size: 0.875rem; color: #111827; font-weight: 500;">genomicsapp_vcf_agent_supervisor</div>
-                <div style="font-size: 0.8125rem; color: #6b7280; margin-top: 0.25rem;">{region}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        st.info(f"""
+**Active Agent**  
+genomicsapp_vcf_agent_supervisor  
+{region}
+        """)
         
         with st.expander("View ARN", expanded=False):
             st.code(agent_arn, language="text")
@@ -796,8 +458,8 @@ def main():
             st.rerun()
 
         # Runtime Session ID
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("##### Session")
+        st.divider()
+        st.subheader("Session")
 
         # Initialize session ID in session state if not exists
         if "runtime_session_id" not in st.session_state:
@@ -820,8 +482,8 @@ def main():
             st.session_state.runtime_session_id = runtime_session_id
 
         # Response formatting options
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("##### Display Options")
+        st.divider()
+        st.subheader("Display Options")
         auto_format = st.checkbox(
             "Auto-format responses",
             value=False,  # DISABLED - Was corrupting numbers
@@ -849,8 +511,8 @@ def main():
             st.rerun()
 
         # Sample questions
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("##### Example Queries")
+        st.divider()
+        st.subheader("Example Queries")
         
         sample_questions = [
             "How many patients are in the present cohort?",
@@ -868,17 +530,11 @@ def main():
                 st.session_state["selected_question"] = question
 
         # Connection status
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.divider()
         if agent_arn:
-            st.markdown(
-                '<div style="padding: 0.5rem; background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; font-size: 0.8125rem; color: #166534; text-align: center;">Agent Connected</div>',
-                unsafe_allow_html=True,
-            )
+            st.success("✅ Agent Connected")
         else:
-            st.markdown(
-                '<div style="padding: 0.5rem; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px; font-size: 0.8125rem; color: #991b1b; text-align: center;">No Agent Selected</div>',
-                unsafe_allow_html=True,
-            )
+            st.error("❌ No Agent Selected")
     # Initialize chat history
     if "messages" not in st.session_state:
         st.session_state.messages = []
